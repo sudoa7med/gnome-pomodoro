@@ -14,9 +14,9 @@ git pull --ff-only origin "$BRANCH"
 
 echo "==> 2/4 إعداد البناء"
 if [ ! -d "$BUILD_DIR" ]; then
-    meson setup "$BUILD_DIR"
+    meson setup "$BUILD_DIR" --prefix=/usr
 else
-    meson setup --reconfigure "$BUILD_DIR" >/dev/null
+    meson setup --reconfigure "$BUILD_DIR" --prefix=/usr >/dev/null
 fi
 
 echo "==> 3/4 بناء النسخة الجديدة"
