@@ -1,23 +1,78 @@
-> [!IMPORTANT]  
-> [master](https://github.com/gnome-pomodoro/gnome-pomodoro/tree/master) branch holds latest stable version of the app. Development has moved to [main](https://github.com/gnome-pomodoro/gnome-pomodoro/tree/main) branch.
+# GNOME Pomodoro (custom build)
 
-# A time management utility for GNOME
+Custom build of [GNOME Pomodoro](https://gnomepomodoro.org) with the following
+changes on top of release 0.29.0:
 
-GNOME Pomodoro is a small application that helps managing time according to [Pomodoro Technique](https://en.wikipedia.org/wiki/Pomodoro_Technique). It intends to improve productivity and focus by taking short breaks. It
-uses [GNOME](https://www.gnome.org/) technologies, and so it has complete integration with the GNOME desktop environment. For more general information about Pomodoro please visit our website at
+- Stats pages refactored onto a `Gtk.ScrolledWindow` with a per-activity
+  categories summary.
+- Chart refresh fix (dirty-flag + delayed update instead of a constructor
+  update).
+- Guide lines: the timeline chart keeps its grid; the totals chart guide line
+  is removed on the **Week** and **Month** pages only (kept on **Day**).
+- `POMODORO_STATS` environment hook for opening the stats view directly in a
+  given mode (see below).
 
-[https://gnomepomodoro.org](https://gnomepomodoro.org)
+## Download
 
-This software is licensed under the [GPL 3](https://github.com/gnome-pomodoro/gnome-pomodoro/blob/master/COPYING).
+```bash
+git clone https://github.com/sudoa7med/gnome-pomodoro.git
+cd gnome-pomodoro
+```
 
-*This project is not affiliated with, authorized by, sponsored by, or otherwise approved by GNOME Foundation and/or the Pomodoro Technique®. The GNOME logo and GNOME name are registered trademarks or trademarks of GNOME Foundation in the United States or other countries. The Pomodoro Technique® and Pomodoro™ are registered trademarks of Francesco Cirillo.*
+## Dependencies (Ubuntu/Debian)
 
+```bash
+sudo apt install meson ninja-build valac \
+  libglib2.0-dev libgtk-3-dev libgdk-pixbuf-2.0-dev libcairo2-dev \
+  libgirepository1.0-dev gobject-introspection libpeas-2-dev \
+  libgom-1.0-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+  libcanberra-dev libjson-glib-dev libsqlite3-dev
+```
 
-## Package download and building from source
+## Build and install
 
-You can find detailed information under the Download section on our webpage https://gnomepomodoro.org/
+```bash
+meson setup build
+ninja -C build
+sudo ninja -C build install
+```
 
+This installs the app to `/usr` (binary `/usr/bin/gnome-pomodoro`, library
+`/usr/lib/x86_64-linux-gnu/libgnome-pomodoro.so`), compiles the GSettings
+schemas, and registers the desktop entry.
 
-## Sync your Pomodoros with popular time-tracking services
+## Run
 
-https://github.com/gnome-pomodoro/gnome-pomodoro-tracking
+Launch the indicator:
+
+```bash
+/usr/bin/gnome-pomodoro --no-default-window
+```
+
+Open the stats window directly on a specific page (debug hook):
+
+```bash
+POMODORO_STATS=day   gnome-pomodoro
+POMODORO_STATS=week  gnome-pomodoro
+POMODORO_STATS=month gnome-pomodoro
+```
+
+Or open stats from the running app via D-Bus:
+
+```bash
+gdbus call --session --dest org.gnome.Pomodoro \
+  --object-path /org/gnome/Pomodoro \
+  --method org.gnome.Pomodoro.ShowMainWindow "stats" 0
+```
+
+## Reinstall after changes
+
+```bash
+ninja -C build            # rebuild
+sudo ninja -C build install
+pkill -x gnome-pomodoro   # restart so the new library is loaded
+```
+
+## License
+
+This software is licensed under the [GPL 3](https://www.gnu.org/licenses/gpl-3.0.html).
