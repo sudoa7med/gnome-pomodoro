@@ -53,6 +53,24 @@ gdbus call --session --dest org.gnome.Pomodoro \
   --method org.gnome.Pomodoro.ShowMainWindow "stats" 0
 ```
 
+## Update (one command)
+
+Pull, build, install and restart in a single step:
+
+```bash
+./update-gnome-pomodoro.sh
+```
+
+Or, if the alias is set up in `~/.zshrc`:
+
+```bash
+pomo-update
+```
+
+The script does: `git pull` → `meson setup --reconfigure` → `ninja build` →
+`pkexec ninja install` (a password prompt will appear) → restart the
+`gnome-pomodoro` daemon with the newly installed library.
+
 ## Reinstall after changes
 
 ```bash
