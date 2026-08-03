@@ -401,7 +401,7 @@ namespace Pomodoro
                     total_values[index] = 0.0;
                 }
 
-                if (days_count > 7 && date.get_day_of_week () != 1) {
+                if (days_count > 7 && date.get_day_of_week () != 6) {
                     continue;
                 }
 

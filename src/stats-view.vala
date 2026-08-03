@@ -311,7 +311,8 @@ namespace Pomodoro
                                                        0.0);
                     // GLib.DateTime constructor is not happy with negative day numbers,
                     // so a separate add_days() call is needed
-                    return tmp.add_days (1 - datetime.get_day_of_week ());
+                    // week starts on Saturday (get_day_of_week (): 1=Mon .. 7=Sun)
+                    return tmp.add_days (-((datetime.get_day_of_week () - 6 + 7) % 7));
                 case "month":
                     return new GLib.DateTime.local (datetime.get_year (),
                                                     datetime.get_month (),

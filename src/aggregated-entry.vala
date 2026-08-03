@@ -92,7 +92,8 @@ SELECT """ + group_by_sql + """ AS "group", SUM("elapsed") AS "elapsed-sum"
 
         public static async int64 get_baseline_weekly_elapsed ()
         {
-            return yield get_max_elapsed_sum ("strftime('%Y-%W', \"date-string\")");
+            // '+2 days' shifts dates so Saturday-starting weeks group as %W (Monday-based) weeks
+            return yield get_max_elapsed_sum ("strftime('%Y-%W', \"date-string\", '+2 days')");
         }
 
         public static async int64 get_baseline_monthly_elapsed ()
