@@ -20,12 +20,18 @@ sudo apt install meson ninja-build valac \
 ## Build and install
 
 ```bash
-meson setup build
+meson setup build --prefix=/usr
 ninja -C build
 sudo ninja -C build install
 ```
 
-This installs the app to `/usr` (binary `/usr/bin/gnome-pomodoro`, library
+> **`--prefix=/usr` is required.** Meson's default prefix is `/usr/local`, which
+> would install the library to `/usr/local/lib/x86_64-linux-gnu` — a directory
+> that is **not** in the linker's search path, so `gnome-pomodoro` would fail
+> with `cannot open shared object file: libgnome-pomodoro.so.0`.
+
+With `--prefix=/usr` the app installs to `/usr` (binary
+`/usr/bin/gnome-pomodoro`, library
 `/usr/lib/x86_64-linux-gnu/libgnome-pomodoro.so`), compiles the GSettings
 schemas, and registers the desktop entry.
 
@@ -67,9 +73,9 @@ Or, if the alias is set up in `~/.zshrc`:
 pomo-update
 ```
 
-The script does: `git pull` → `meson setup --reconfigure` → `ninja build` →
-`pkexec ninja install` (a password prompt will appear) → restart the
-`gnome-pomodoro` daemon with the newly installed library.
+The script does: `git pull` → `meson setup --reconfigure --prefix=/usr` →
+`ninja build` → `pkexec ninja install` (a password prompt will appear) →
+restart the `gnome-pomodoro` daemon with the newly installed library.
 
 ## Reinstall after changes
 
