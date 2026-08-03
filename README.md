@@ -1,16 +1,4 @@
-# GNOME Pomodoro (custom build)
-
-Custom build of [GNOME Pomodoro](https://gnomepomodoro.org) with the following
-changes on top of release 0.29.0:
-
-- Stats pages refactored onto a `Gtk.ScrolledWindow` with a per-activity
-  categories summary.
-- Chart refresh fix (dirty-flag + delayed update instead of a constructor
-  update).
-- Guide lines: the timeline chart keeps its grid; the totals chart guide line
-  is removed on the **Week** and **Month** pages only (kept on **Day**).
-- `POMODORO_STATS` environment hook for opening the stats view directly in a
-  given mode (see below).
+# GNOME Pomodoro
 
 ## Download
 
