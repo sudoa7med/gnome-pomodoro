@@ -31,8 +31,10 @@ namespace Pomodoro
             GLib.Object (date: date);
 
             this.repository = repository;
+        }
 
-            this.update ();
+        protected override bool show_totals_guide_lines {
+            get { return false; }
         }
 
         protected override string format_datetime (GLib.DateTime date)

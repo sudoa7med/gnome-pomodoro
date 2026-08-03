@@ -100,7 +100,38 @@ namespace Pomodoro
 
             this.insert_action_group ("stats", action_group);
 
+            var timer = Pomodoro.Timer.get_default ();
+            timer.state_changed.connect_after (this.on_timer_state_changed);
+
             base.parser_finished (builder);
+        }
+
+        private void on_timer_state_changed (Pomodoro.TimerState state,
+                                             Pomodoro.TimerState previous_state)
+        {
+            if (!this.get_mapped ()) {
+                return;
+            }
+
+            this.refresh_current_page ();
+
+            /* the entry is saved asynchronously; refresh again once it is committed */
+            GLib.Timeout.add (1000, () => {
+                if (this.get_mapped ()) {
+                    this.refresh_current_page ();
+                }
+
+                return GLib.Source.REMOVE;
+            });
+        }
+
+        private void refresh_current_page ()
+        {
+            var page = this.pages.visible_child as Pomodoro.StatsPage;
+
+            if (page != null) {
+                page.update ();
+            }
         }
 
         private static bool transform_mode_to_page (GLib.Binding   binding,
@@ -232,6 +263,17 @@ namespace Pomodoro
             else if (this.mode == "none") {
                 this.mode = "day";
             }
+            else {
+                /* a page may not exist yet if mode was set before mapping */
+                var page = this.pages.visible_child as Pomodoro.StatsPage;
+
+                if (page == null) {
+                    this.select_page (this.max_datetime);
+                }
+                else {
+                    this.refresh_current_page ();
+                }
+            }
         }
 
         /**
@@ -357,6 +399,9 @@ namespace Pomodoro
 
                 this.pages.set_transition_type (page_transition);
                 this.pages.set_visible_child (page as Gtk.Widget);
+
+                /* refresh page data (pages are cached, so refetch on every switch) */
+                page.update ();
 
                 /* cleanup previous pages */
                 this.history.remove (page as Gtk.Widget);

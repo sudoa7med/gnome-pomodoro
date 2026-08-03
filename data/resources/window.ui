@@ -262,6 +262,18 @@
           </object>
         </child>
         <child>
+          <object class="GtkMenuButton" id="activity_button">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+            <property name="label">General</property>
+            <property name="tooltip-text" translatable="yes">Choose activity</property>
+          </object>
+          <packing>
+            <property name="pack-type">start</property>
+          </packing>
+        </child>
+        <child>
           <object class="GtkMenuButton" id="menu_button">
             <property name="visible">True</property>
             <property name="can-focus">True</property>

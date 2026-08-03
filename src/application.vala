@@ -36,7 +36,7 @@ namespace Pomodoro
 
     public class Application : Gtk.Application
     {
-        private const uint REPOSITORY_VERSION = 1;
+        private const uint REPOSITORY_VERSION = 2;
         private const uint SETUP_PLUGINS_TIMEOUT = 3000;
 
         public Pomodoro.Service service;
@@ -949,6 +949,14 @@ namespace Pomodoro
                 var entry = new Pomodoro.Entry.from_state (previous_state);
                 entry.repository = this.repository;
 
+                if (previous_state.name == "pomodoro")
+                {
+                    var category = Pomodoro.get_settings ()
+                            .get_child ("preferences")
+                            .get_string ("current-activity");
+                    entry.category = category;
+                }
+
                 if (midnight_split_ratio > 0.0)
                 {
                     entry.elapsed = (int64) Math.round ((double) entry.elapsed * midnight_split_ratio);
@@ -957,6 +965,7 @@ namespace Pomodoro
                     entry_after_midnight.repository = this.repository;
                     entry_after_midnight.set_datetime (midnight_datetime);
                     entry_after_midnight.elapsed -= entry.elapsed;
+                    entry_after_midnight.category = entry.category;
 
                     this.hold ();
                     entry_after_midnight.save_async.begin ((obj, res) => {

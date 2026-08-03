@@ -33,6 +33,7 @@ namespace Pomodoro
         public string state_name { get; set; }
         public int64 state_duration { get; set; }
         public int64 elapsed { get; set; }
+        public string? category { get; set; default = ""; }
 
         /* Store current local date and time as string. We want to keep the original date and time.
          * For this we could store timezone name/offset, but date formatted strings can be used straight

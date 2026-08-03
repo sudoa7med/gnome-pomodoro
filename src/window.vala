@@ -83,6 +83,9 @@ namespace Pomodoro
         private unowned Gtk.Image pause_resume_image;
         [GtkChild]
         private unowned Gtk.Image skip_stop_image;
+        private unowned Gtk.MenuButton activity_button;
+
+        private GLib.Settings preferences_settings;
 
         private Pomodoro.Animation blink_animation;
         private string default_page;
@@ -107,6 +110,31 @@ namespace Pomodoro
 
             this.stack.visible_child_name = this.default_page;
 
+            var debug_stats = GLib.Environment.get_variable ("POMODORO_STATS");
+            if (debug_stats != null)
+            {
+                this.stack.visible_child_name = "stats";
+                GLib.debug ("POMODORO_STATS hook: stack child=%s", this.stack.visible_child_name);
+
+                GLib.Idle.add (() => {
+                    this.stack.visible_child_name = "stats";
+
+                    var stats_view = this.stack.visible_child as Pomodoro.StatsView;
+                    if (stats_view != null)
+                    {
+                        GLib.debug ("POMODORO_STATS idle: setting mode=%s", debug_stats);
+                        stats_view.mode = debug_stats;
+                    }
+                    else
+                    {
+                        GLib.debug ("POMODORO_STATS idle: stats_view is null (child=%s)",
+                                    this.stack.visible_child_name);
+                    }
+
+                    return false;
+                });
+            }
+
             this.on_timer_state_notify ();
             this.on_timer_elapsed_notify ();
             this.on_timer_is_paused_notify ();
@@ -127,9 +155,223 @@ namespace Pomodoro
                                               "visible",
                                               GLib.BindingFlags.BIDIRECTIONAL);
 
+            this.preferences_settings = Pomodoro.get_settings ()
+                    .get_child ("preferences");
+
+            /* [GtkChild] fields are not bound yet during parser_finished,
+             * so fetch the button from the builder instead. */
+            this.activity_button = builder.get_object ("activity_button")
+                    as Gtk.MenuButton;
+
+            this.activity_button.label =
+                    this.get_current_activity ();
+            this.update_activity_menu ();
+
+            this.preferences_settings.changed["current-activity"].connect (() => {
+                this.activity_button.label = this.get_current_activity ();
+            });
+            this.preferences_settings.changed["activity-categories"].connect (() => {
+                this.update_activity_menu ();
+            });
+
             this.timer.notify["state"].connect_after (this.on_timer_state_notify);
             this.timer.notify["elapsed"].connect_after (this.on_timer_elapsed_notify);
             this.timer.notify["is-paused"].connect_after (this.on_timer_is_paused_notify);
+        }
+
+        private string get_current_activity ()
+        {
+            var current_activity = this.preferences_settings.get_string ("current-activity");
+            var categories = this.preferences_settings.get_strv ("activity-categories");
+
+            if (current_activity == "" || !(current_activity in categories))
+            {
+                current_activity = categories.length > 0
+                        ? categories[0] : _("General");
+            }
+
+            return current_activity;
+        }
+
+        private void update_activity_menu ()
+        {
+            var menu = new Gtk.Menu ();
+            var current_activity = this.get_current_activity ();
+            var categories = this.preferences_settings.get_strv ("activity-categories");
+
+            Gtk.RadioMenuItem? previous_radio = null;
+
+            foreach (var category in categories)
+            {
+                Gtk.RadioMenuItem item;
+
+                if (previous_radio != null) {
+                    item = new Gtk.RadioMenuItem.with_label_from_widget (previous_radio, category);
+                }
+                else {
+                    item = new Gtk.RadioMenuItem.with_label (null, category);
+                }
+
+                item.active = (category == current_activity);
+
+                item.toggled.connect (() => {
+                    if (item.active)
+                    {
+                        this.preferences_settings.set_string ("current-activity", category);
+                        this.activity_button.label = category;
+                    }
+                });
+
+                menu.append (item);
+                previous_radio = item;
+            }
+
+            menu.append (new Gtk.SeparatorMenuItem ());
+
+            var add_item = new Gtk.MenuItem.with_label (_("Add Activity…"));
+            add_item.activate.connect (this.show_add_activity_dialog);
+            menu.append (add_item);
+
+            var manage_item = new Gtk.MenuItem.with_label (_("Manage Activities…"));
+            manage_item.activate.connect (this.show_manage_activities_dialog);
+            menu.append (manage_item);
+
+            menu.show_all ();
+            this.activity_button.popup = menu;
+        }
+
+        private void show_manage_activities_dialog ()
+        {
+            var window = this.get_toplevel () as Gtk.Window;
+
+            var dialog = new Gtk.Dialog.with_buttons (
+                    _("Manage Activities"),
+                    window,
+                    Gtk.DialogFlags.MODAL,
+                    _("Close"), Gtk.ResponseType.CLOSE);
+            dialog.set_default_response (Gtk.ResponseType.CLOSE);
+
+            var content = dialog.get_content_area ();
+            content.spacing = 12;
+            content.margin_start = 12;
+            content.margin_end = 12;
+            content.margin_top = 12;
+            content.margin_bottom = 12;
+
+            var list = new Gtk.ListBox ();
+            list.selection_mode = Gtk.SelectionMode.NONE;
+            list.set_size_request (280, -1);
+            content.pack_start (list, true, true, 0);
+
+            refresh_rows (list);
+
+            dialog.response.connect ((response) => {
+                dialog.destroy ();
+            });
+
+            dialog.show_all ();
+        }
+
+        private void refresh_rows (Gtk.ListBox list)
+        {
+            foreach (var child in list.get_children ()) {
+                list.remove (child);
+            }
+
+            var categories = this.preferences_settings.get_strv ("activity-categories");
+
+            foreach (var category in categories)
+            {
+                var row = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8);
+                row.margin_start = 8;
+                row.margin_end = 8;
+                row.margin_top = 4;
+                row.margin_bottom = 4;
+
+                var label = new Gtk.Label (category);
+                label.halign = Gtk.Align.START;
+                label.hexpand = true;
+
+                var delete_button = new Gtk.Button.with_label (_("Delete"));
+                delete_button.get_style_context ().add_class ("destructive-action");
+                delete_button.sensitive = categories.length > 1;
+
+                delete_button.clicked.connect (() => {
+                    var current = this.preferences_settings.get_strv ("activity-categories");
+
+                    if (current.length <= 1) {
+                        return;
+                    }
+
+                    var updated = new string[0];
+
+                    foreach (var current_category in current) {
+                        if (current_category != category) {
+                            updated += current_category;
+                        }
+                    }
+
+                    this.preferences_settings.set_strv ("activity-categories", updated);
+
+                    if (this.preferences_settings.get_string ("current-activity") == category) {
+                        this.preferences_settings.set_string ("current-activity", "");
+                    }
+
+                    refresh_rows (list);
+                });
+
+                row.pack_start (label, true, true, 0);
+                row.pack_start (delete_button, false, false, 0);
+                list.add (row);
+            }
+        }
+
+        private void show_add_activity_dialog ()
+        {
+            var window = this.get_toplevel () as Gtk.Window;
+
+            var dialog = new Gtk.Dialog.with_buttons (
+                    _("Add Activity"),
+                    window,
+                    Gtk.DialogFlags.MODAL,
+                    _("Cancel"), Gtk.ResponseType.CANCEL,
+                    _("Add"), Gtk.ResponseType.OK);
+            dialog.set_default_response (Gtk.ResponseType.OK);
+
+            var entry = new Gtk.Entry ();
+            entry.activates_default = true;
+
+            var content = dialog.get_content_area ();
+            content.spacing = 12;
+            content.margin_start = 12;
+            content.margin_end = 12;
+            content.margin_top = 12;
+            content.margin_bottom = 12;
+            content.pack_start (entry, false, false, 0);
+
+            dialog.show_all ();
+            entry.grab_focus ();
+
+            dialog.response.connect ((response) => {
+                if (response == Gtk.ResponseType.OK)
+                {
+                    var name = entry.text.strip ();
+                    if (name != "")
+                    {
+                        var categories = this.preferences_settings.get_strv ("activity-categories");
+
+                        if (!(name in categories))
+                        {
+                            categories += name;
+                            this.preferences_settings.set_strv ("activity-categories", categories);
+                        }
+
+                        this.preferences_settings.set_string ("current-activity", name);
+                    }
+                }
+
+                dialog.destroy ();
+            });
         }
 
         private void update_buttons ()

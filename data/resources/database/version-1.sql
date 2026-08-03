@@ -1,4 +1,4 @@
-CREATE TABLE "entries" (
+CREATE TABLE IF NOT EXISTS "entries" (
     "id"                    INTEGER PRIMARY KEY AUTOINCREMENT,
     "datetime-string"       TEXT NOT NULL,  -- in utc
     "datetime-local-string" TEXT NOT NULL,  -- local
@@ -7,7 +7,7 @@ CREATE TABLE "entries" (
     "elapsed"               INTEGER DEFAULT 0
 );
 
-CREATE TABLE "aggregated-entries" (
+CREATE TABLE IF NOT EXISTS "aggregated-entries" (
     "id"                    INTEGER PRIMARY KEY AUTOINCREMENT,
     "date-string"           TEXT  NOT NULL,  -- local
     "state-name"            TEXT  NOT NULL,
@@ -15,18 +15,18 @@ CREATE TABLE "aggregated-entries" (
     "elapsed"               INTEGER  DEFAULT 0
 );
 
-CREATE INDEX "entries-datetime-local-string" ON "entries" (
+CREATE INDEX IF NOT EXISTS "entries-datetime-local-string" ON "entries" (
     "datetime-local-string"
 );
-CREATE INDEX "aggregated-entries-date-string" ON "aggregated-entries" (
+CREATE INDEX IF NOT EXISTS "aggregated-entries-date-string" ON "aggregated-entries" (
     "date-string"
 );
-CREATE UNIQUE INDEX "aggregated-entries-date-string-state-name" ON "aggregated-entries" (
+CREATE UNIQUE INDEX IF NOT EXISTS "aggregated-entries-date-string-state-name" ON "aggregated-entries" (
     "date-string",
     "state-name"
 );
 
-CREATE TRIGGER "entries-insert" AFTER INSERT ON "entries" FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS "entries-insert" AFTER INSERT ON "entries" FOR EACH ROW
     BEGIN
         UPDATE "aggregated-entries"
             SET
@@ -51,7 +51,7 @@ CREATE TRIGGER "entries-insert" AFTER INSERT ON "entries" FOR EACH ROW
                 changes() = 0;
     END;
 
-CREATE TRIGGER "entries-update" AFTER UPDATE ON "entries" FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS "entries-update" AFTER UPDATE ON "entries" FOR EACH ROW
     BEGIN
         UPDATE "aggregated-entries"
             SET
@@ -84,7 +84,7 @@ CREATE TRIGGER "entries-update" AFTER UPDATE ON "entries" FOR EACH ROW
                 "state-name" = OLD."state-name";
     END;
 
-CREATE TRIGGER "entries-delete" AFTER DELETE ON "entries" FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS "entries-delete" AFTER DELETE ON "entries" FOR EACH ROW
     BEGIN
         UPDATE "aggregated-entries"
             SET

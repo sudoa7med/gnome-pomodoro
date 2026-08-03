@@ -36,8 +36,6 @@ namespace Pomodoro
             GLib.Object (date: date);
 
             this.repository = repository;
-
-            this.update ();
         }
 
         protected override string format_datetime (GLib.DateTime date)

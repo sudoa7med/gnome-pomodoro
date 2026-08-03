@@ -24,7 +24,7 @@ using GLib;
 namespace Pomodoro
 {
     [GtkTemplate (ui = "/org/gnome/pomodoro/stats-page.ui")]
-    private abstract class StatsPage : Gtk.Box, Gtk.Buildable
+    private abstract class StatsPage : Gtk.ScrolledWindow, Gtk.Buildable
     {
         private const double GUIDES_OFFSET = 5.0;
         private const double GUIDES_WIDTH = 40.0;
@@ -48,6 +48,12 @@ namespace Pomodoro
             public int64 break_elapsed;
         }
 
+        struct CategoryTotals
+        {
+            public string name;
+            public int64 elapsed;
+        }
+
         public GLib.DateTime date {
             get {
                 return this._date;
@@ -69,12 +75,19 @@ namespace Pomodoro
         public unowned Gtk.DrawingArea timeline_chart;
         [GtkChild]
         public unowned Gtk.DrawingArea totals_chart;
+        [GtkChild]
+        public unowned Gtk.Box categories_box;
 
         protected GLib.DateTime _date;
         protected Gom.Repository repository;
         protected uint64 reference_value;
         protected uint64 daily_reference_value;
+        protected virtual bool show_totals_guide_lines {
+            get { return true; }
+        }
         private GLib.HashTable<string, Data?> days;
+        private bool _is_updating;
+        private bool _pending_update;
 
         construct
         {
@@ -486,16 +499,17 @@ namespace Pomodoro
                 totals.break_elapsed += data.break_elapsed;
             });
 
-            /* grid */
-            draw_guide_lines (context,
-                              reference_value,
-                              chart_x - CHART_PADDING,
-                              chart_y,
-                              chart_width + 2.0 * CHART_PADDING,
-                              chart_height,
-                              theme_fg_color);
-
             /* pomodoro bar */
+            if (this.show_totals_guide_lines) {
+                draw_guide_lines (context,
+                                  reference_value,
+                                  chart_x - CHART_PADDING,
+                                  chart_y,
+                                  chart_width + 2.0 * CHART_PADDING,
+                                  chart_height,
+                                  theme_fg_color);
+            }
+
             bar_x = Math.floor (chart_x + chart_width / 2.0 - bar_spacing / 2.0 - bar_width);
 
             context.set_source_rgba
@@ -592,6 +606,15 @@ namespace Pomodoro
 
         public void update ()
         {
+            if (this._is_updating) {
+                this._pending_update = true;
+
+                return;
+            }
+
+            this._is_updating = true;
+            this._pending_update = false;
+
             this.date_end = this.get_next_date ();
 
             this.timeline_chart.visible = false;
@@ -612,7 +635,127 @@ namespace Pomodoro
                 if (this.totals_chart.get_mapped ()) {
                     this.totals_chart.queue_draw ();
                 }
+
+                this.fetch_categories.begin (() => {
+                    this._is_updating = false;
+
+                    if (this._pending_update) {
+                        this._pending_update = false;
+                        this.update ();
+                    }
+                });
             });
+        }
+
+        private async void fetch_categories ()
+        {
+            this.categories_box.visible = false;
+
+            var date_start = this.date.format (Pomodoro.AggregatedEntry.DATE_FORMAT);
+            var date_end = this.date_end.format (Pomodoro.AggregatedEntry.DATE_FORMAT);
+
+            var filter = new Gom.Filter.and (
+                new Gom.Filter.gte (typeof (Pomodoro.Entry), "datetime-local-string", date_start),
+                new Gom.Filter.and (
+                    new Gom.Filter.lt (typeof (Pomodoro.Entry), "datetime-local-string", date_end),
+                    new Gom.Filter.eq (typeof (Pomodoro.Entry), "state-name", "pomodoro")
+                )
+            );
+
+            var totals = new GLib.HashTable<string, int64?> (str_hash, str_equal);
+
+            this.repository.find_async.begin (typeof (Pomodoro.Entry), filter, (obj, res) => {
+                try {
+                    var group = this.repository.find_async.end (res);
+
+                    if (group.count > 0) {
+                        group.fetch_async.begin (0, group.count, (obj, res) => {
+                            try {
+                                group.fetch_async.end (res);
+
+                                for (var index = 0; index < group.count; index++) {
+                                    var entry = group.get_index (index) as Pomodoro.Entry;
+                                    var category = (entry.category == null || entry.category == "")
+                                            ? _("General")
+                                            : entry.category;
+                                    var value = totals.lookup (category);
+
+                                    totals.insert (category, (value ?? 0) + entry.elapsed);
+                                }
+                            }
+                            catch (GLib.Error error) {
+                                GLib.critical ("%s", error.message);
+                            }
+
+                            fetch_categories.callback ();
+                        });
+                    }
+                    else {
+                        fetch_categories.callback ();
+                    }
+                }
+                catch (GLib.Error error) {
+                    GLib.critical ("%s", error.message);
+
+                    fetch_categories.callback ();
+                }
+            });
+
+            yield;
+
+            /* remove old rows, keep the header label */
+            var index = 0;
+
+            foreach (var child in this.categories_box.get_children ()) {
+                index++;
+
+                if (index > 1) {
+                    this.categories_box.remove (child);
+                }
+            }
+
+            if (totals.size () == 0) {
+                return;
+            }
+
+            CategoryTotals[] items = {};
+
+            totals.foreach ((name, elapsed) => {
+                items += CategoryTotals () { name = name, elapsed = elapsed };
+            });
+
+            /* insertion sort, descending by elapsed */
+            for (var i = 1; i < items.length; i++) {
+                var item = items[i];
+                var j = i - 1;
+
+                while (j >= 0 && items[j].elapsed < item.elapsed) {
+                    items[j + 1] = items[j];
+                    j--;
+                }
+
+                items[j + 1] = item;
+            }
+
+            foreach (var item in items) {
+                var row = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 8);
+                row.halign = Gtk.Align.CENTER;
+
+                var name_label = new Gtk.Label (item.name);
+                name_label.halign = Gtk.Align.END;
+
+                var value_label = new Gtk.Label (format_value (item.elapsed));
+                value_label.get_style_context ().add_class ("dim-label");
+                value_label.halign = Gtk.Align.START;
+
+                row.pack_start (name_label, false, false, 0);
+                row.pack_start (value_label, false, false, 0);
+                row.show_all ();
+
+                this.categories_box.add (row);
+            }
+
+            this.categories_box.visible = true;
         }
 
         protected async void fetch ()

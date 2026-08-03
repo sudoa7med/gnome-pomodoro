@@ -49,6 +49,16 @@
       <summary>Enabled plugins</summary>
       <description>List of enabled plugins.</description>
     </key>
+    <key name="current-activity" type="s">
+      <default>''</default>
+      <summary>Current activity</summary>
+      <description>Name of the activity used to tag pomodoro sessions.</description>
+    </key>
+    <key name="activity-categories" type="as">
+      <default>["Hunting", "Write-ups", "Youtube", "Study", "General"]</default>
+      <summary>Activity categories</summary>
+      <description>List of activities used to tag pomodoro sessions.</description>
+    </key>
   </schema>
 
   <schema id="org.gnome.pomodoro.state" path="/org/gnome/pomodoro/state/">
