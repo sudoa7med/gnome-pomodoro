@@ -917,6 +917,110 @@ namespace Pomodoro
         /**
          * Save timer state, assume user is idle when break is completed.
          */
+        /**
+         * Save an entry for the elapsed time accumulated in the given state.
+         *
+         * The entry is attributed to the activity selected at the moment the
+         * state ends (for pomodoro states). `end_timestamp` is when the state
+         * finished; the state's own timestamp marks when it started.
+         */
+        private void commit_state_entry (Pomodoro.TimerState state,
+                                         double              end_timestamp)
+        {
+            if (state is Pomodoro.DisabledState || state.elapsed <= 0.0)
+            {
+                return;
+            }
+
+            var datetime = new GLib.DateTime.from_unix_utc (
+                (int64) Math.floor (state.timestamp)).to_local ();
+
+            var midnight_datetime = new GLib.DateTime.local (
+                    datetime.get_year (),
+                    datetime.get_month (),
+                    datetime.get_day_of_month (),
+                    0,
+                    0,
+                    0);
+            midnight_datetime.add_days (1);
+            var midnight_timestamp = (double) midnight_datetime.to_unix ();
+            var midnight_split_ratio =
+                    ((midnight_timestamp - state.timestamp) /
+                    (end_timestamp - state.timestamp)).clamp (0.0, 1.0);
+
+            var entry = new Pomodoro.Entry.from_state (state);
+            entry.repository = this.repository;
+
+            if (state.name == "pomodoro")
+            {
+                var category = Pomodoro.get_settings ()
+                        .get_child ("preferences")
+                        .get_string ("current-activity");
+                entry.category = category;
+            }
+
+            if (midnight_split_ratio > 0.0)
+            {
+                entry.elapsed = (int64) Math.round ((double) entry.elapsed * midnight_split_ratio);
+
+                var entry_after_midnight = new Pomodoro.Entry.from_state (state);
+                entry_after_midnight.repository = this.repository;
+                entry_after_midnight.set_datetime (midnight_datetime);
+                entry_after_midnight.elapsed -= entry.elapsed;
+                entry_after_midnight.category = entry.category;
+
+                this.hold ();
+                entry_after_midnight.save_async.begin ((obj, res) => {
+                    try {
+                        entry_after_midnight.save_async.end (res);
+                    }
+                    catch (GLib.Error error) {
+                        GLib.warning ("Error while saving entry: %s", error.message);
+                    }
+
+                    this.release ();
+                });
+            }
+
+            this.hold ();
+            entry.save_async.begin ((obj, res) => {
+                try {
+                    entry.save_async.end (res);
+                }
+                catch (GLib.Error error) {
+                    GLib.warning ("Error while saving entry: %s", error.message);
+                }
+
+                this.release ();
+            });
+        }
+
+        /**
+         * Commit the time accumulated so far to the currently selected
+         * activity and freeze the timer at the remaining time.
+         *
+         * Called when the user switches activity while the timer is running,
+         * so the elapsed time is not lost to the new activity. The timer stays
+         * paused; resuming continues counting towards the new activity.
+         */
+        public void commit_elapsed_and_pause ()
+        {
+            if (this.timer == null ||
+                this.timer.state is Pomodoro.DisabledState ||
+                this.timer.is_paused)
+            {
+                return;
+            }
+
+            this.timer.update ();
+
+            if (this.timer.elapsed > 0.0)
+            {
+                this.commit_state_entry (this.timer.state, this.timer.timestamp);
+                this.timer.is_paused = true;
+            }
+        }
+
         private void on_timer_state_changed (Pomodoro.Timer      timer,
                                              Pomodoro.TimerState state,
                                              Pomodoro.TimerState previous_state)
@@ -928,70 +1032,7 @@ namespace Pomodoro
                 this.timer.resume ();
             }
 
-            if (!(previous_state is Pomodoro.DisabledState) && previous_state.elapsed > 0)
-            {
-                var datetime = new GLib.DateTime.from_unix_utc (
-                    (int64) Math.floor (state.timestamp)).to_local ();
-
-                var midnight_datetime = new GLib.DateTime.local (
-                        datetime.get_year (),
-                        datetime.get_month (),
-                        datetime.get_day_of_month (),
-                        0,
-                        0,
-                        0);
-                midnight_datetime.add_days (1);
-                var midnight_timestamp = (double) midnight_datetime.to_unix ();
-                var midnight_split_ratio =
-                        ((midnight_timestamp - previous_state.timestamp) /
-                        (state.timestamp - previous_state.timestamp)).clamp (0.0, 1.0);
-
-                var entry = new Pomodoro.Entry.from_state (previous_state);
-                entry.repository = this.repository;
-
-                if (previous_state.name == "pomodoro")
-                {
-                    var category = Pomodoro.get_settings ()
-                            .get_child ("preferences")
-                            .get_string ("current-activity");
-                    entry.category = category;
-                }
-
-                if (midnight_split_ratio > 0.0)
-                {
-                    entry.elapsed = (int64) Math.round ((double) entry.elapsed * midnight_split_ratio);
-
-                    var entry_after_midnight = new Pomodoro.Entry.from_state (previous_state);
-                    entry_after_midnight.repository = this.repository;
-                    entry_after_midnight.set_datetime (midnight_datetime);
-                    entry_after_midnight.elapsed -= entry.elapsed;
-                    entry_after_midnight.category = entry.category;
-
-                    this.hold ();
-                    entry_after_midnight.save_async.begin ((obj, res) => {
-                        try {
-                            entry_after_midnight.save_async.end (res);
-                        }
-                        catch (GLib.Error error) {
-                            GLib.warning ("Error while saving entry: %s", error.message);
-                        }
-
-                        this.release ();
-                    });
-                }
-
-                this.hold ();
-                entry.save_async.begin ((obj, res) => {
-                    try {
-                        entry.save_async.end (res);
-                    }
-                    catch (GLib.Error error) {
-                        GLib.warning ("Error while saving entry: %s", error.message);
-                    }
-
-                    this.release ();
-                });
-            }
+            this.commit_state_entry (previous_state, state.timestamp);
         }
     }
 }

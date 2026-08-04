@@ -217,6 +217,7 @@ namespace Pomodoro
                 item.toggled.connect (() => {
                     if (item.active)
                     {
+                        Pomodoro.Application.get_default ().commit_elapsed_and_pause ();
                         this.preferences_settings.set_string ("current-activity", category);
                         this.activity_button.label = category;
                     }
