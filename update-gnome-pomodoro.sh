@@ -25,11 +25,25 @@ ninja -C "$BUILD_DIR"
 echo "==> 4/4 تثبيت في /usr (هتظهر نافذة مصادقة)"
 pkexec bash -c "cd '$BUILD_DIR' && ninja install"
 
-echo "==> إعادة تشغيل الديمون بالنسخة الجديدة"
+echo "==> 5/6 إعادة تشغيل الديمون بالنسخة الجديدة"
 pkill -x gnome-pomodoro 2>/dev/null || true
 sleep 1
 DISPLAY=:0 GDK_BACKEND=x11 nohup /usr/bin/gnome-pomodoro --no-default-window >"$LOG" 2>&1 &
 sleep 2
+
+echo "==> 6/6 إعادة تحميل امتداد GNOME Shell (بيئة التحديث الجديدة)"
+ON="$(gsettings get org.gnome.shell enabled-extensions 2>/dev/null)"
+OFF="$(printf '%s' "$ON" | python3 -c "
+import sys, ast
+items = ast.literal_eval(sys.stdin.read())
+filtered = [x for x in items if x != 'pomodoro@arun.codito.in']
+print(repr(filtered) if filtered else '[]')
+")"
+if [ -n "$OFF" ] && [ "$ON" != "$OFF" ]; then
+    gsettings set org.gnome.shell enabled-extensions "$OFF"
+    sleep 1
+    gsettings set org.gnome.shell enabled-extensions "$ON"
+fi
 
 echo "تم ✓ — النسخة الحالية:"
 /usr/bin/gnome-pomodoro --version 2>/dev/null || echo "الديمون شغال"

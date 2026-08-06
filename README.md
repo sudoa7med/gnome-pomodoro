@@ -75,7 +75,9 @@ pomo-update
 
 The script does: `git pull` → `meson setup --reconfigure --prefix=/usr` →
 `ninja build` → `pkexec ninja install` (a password prompt will appear) →
-restart the `gnome-pomodoro` daemon with the newly installed library.
+restart the `gnome-pomodoro` daemon with the newly installed library, then
+reload the GNOME Shell extension (so extension changes apply without
+logging out).
 
 ## Reinstall after changes
 
