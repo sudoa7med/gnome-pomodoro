@@ -914,20 +914,22 @@ namespace Pomodoro
             this.save_timer ();
         }
 
-        /**
-         * Save timer state, assume user is idle when break is completed.
-         */
+        private double committed_elapsed = 0.0;
+
         /**
          * Save an entry for the elapsed time accumulated in the given state.
          *
          * The entry is attributed to the activity selected at the moment the
          * state ends (for pomodoro states). `end_timestamp` is when the state
-         * finished; the state's own timestamp marks when it started.
+         * finished; the state's own timestamp marks when it started. `elapsed`
+         * is the amount to record; callers must pass the elapsed that has not
+         * been committed yet (see committed_elapsed).
          */
         private void commit_state_entry (Pomodoro.TimerState state,
-                                         double              end_timestamp)
+                                         double              end_timestamp,
+                                         int64               elapsed)
         {
-            if (state is Pomodoro.DisabledState || state.elapsed <= 0.0)
+            if (state is Pomodoro.DisabledState || elapsed <= 0)
             {
                 return;
             }
@@ -958,6 +960,8 @@ namespace Pomodoro
                         .get_string ("current-activity");
                 entry.category = category;
             }
+
+            entry.elapsed = elapsed;
 
             if (midnight_split_ratio > 0.0)
             {
@@ -1014,9 +1018,14 @@ namespace Pomodoro
 
             this.timer.update ();
 
-            if (this.timer.elapsed > 0.0)
+            var to_commit = this.timer.state.elapsed - this.committed_elapsed;
+
+            if (to_commit > 0.0)
             {
-                this.commit_state_entry (this.timer.state, this.timer.timestamp);
+                this.commit_state_entry (this.timer.state,
+                                         this.timer.timestamp,
+                                         (int64) Math.floor (to_commit));
+                this.committed_elapsed = this.timer.state.elapsed;
                 this.timer.is_paused = true;
             }
         }
@@ -1032,7 +1041,11 @@ namespace Pomodoro
                 this.timer.resume ();
             }
 
-            this.commit_state_entry (previous_state, state.timestamp);
+            var elapsed = (int64) Math.floor (Math.fmax (
+                previous_state.elapsed - this.committed_elapsed, 0.0));
+            this.committed_elapsed = 0.0;
+
+            this.commit_state_entry (previous_state, state.timestamp, elapsed);
         }
     }
 }

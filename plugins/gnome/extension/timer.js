@@ -91,6 +91,14 @@ export class Timer extends EventEmitter {
     _onNameVanished() {
         this._connected = false;
 
+        // The service went away; reset the cached state so the extension stops
+        // showing stale notifications/indicators based on the last known state.
+        this._state = State.NULL;
+        this._stateDuration = 0.0;
+        this._elapsed = 0.0;
+        this._isPaused = false;
+
+        this.emit('state-changed');
         this.emit('update');
         this.emit('service-disconnected');
     }

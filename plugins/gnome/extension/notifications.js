@@ -351,6 +351,8 @@ export const NotificationManager = class extends Signals.EventEmitter {
         this._timerStateChangedId = this._timer.connect('state-changed', this._onTimerStateChanged.bind(this));
         this._timerPausedId = this._timer.connect('paused', this._onTimerPaused.bind(this));
         this._timerResumedId = this._timer.connect('resumed', this._onTimerResumed.bind(this));
+        this._timerServiceDisconnectedId =
+            this._timer.connect('service-disconnected', this._onServiceDisconnected.bind(this));
 
         this._update(params.animate);
     }
@@ -420,6 +422,12 @@ export const NotificationManager = class extends Signals.EventEmitter {
 
                 case NotificationView.BREAK:
                     this.openScreenOverlay();
+                    break;
+
+                case NotificationView.BREAK_ENDED:
+                    // The timer is paused before a pomodoro; just bring up
+                    // the application window so the user can decide what to do.
+                    this._timer.showMainWindow('default', 0);
                     break;
                 }
             });
@@ -632,8 +640,7 @@ export const NotificationManager = class extends Signals.EventEmitter {
         // Use Urgency.CRITICAL to force notification banner to stay open.
         const isUrgent =
             view === NotificationView.POMODORO_ABOUT_TO_END ||
-            view === NotificationView.BREAK_ABOUT_TO_END ||
-            view === NotificationView.BREAK_ENDED;
+            view === NotificationView.BREAK_ABOUT_TO_END;
         const urgency = isUrgent ? MessageTray.Urgency.CRITICAL : MessageTray.Urgency.HIGH;
         if (notification.urgency !== urgency) {
             notification.urgency = urgency;
@@ -650,8 +657,7 @@ export const NotificationManager = class extends Signals.EventEmitter {
 
         const forceResident =
             view === NotificationView.POMODORO_ABOUT_TO_END ||
-            view === NotificationView.BREAK_ABOUT_TO_END ||
-            view === NotificationView.BREAK_ENDED;
+            view === NotificationView.BREAK_ABOUT_TO_END;
         const resident = (!isTransient || forceResident) && view !== NotificationView.NULL;
         if (notification.resident !== resident) {
             notification.resident = resident;
@@ -828,6 +834,13 @@ export const NotificationManager = class extends Signals.EventEmitter {
         this._update();
     }
 
+    _onServiceDisconnected() {
+        // The daemon disconnected, so it can no longer withdraw its
+        // notifications; expire ours so nothing stays stuck on screen.
+        this._expireNotification();
+        this._update();
+    }
+
     destroy() {
         this._destroying = true;
         this._timerState = State.NULL;
@@ -857,6 +870,11 @@ export const NotificationManager = class extends Signals.EventEmitter {
         if (this._timerResumedId) {
             this._timer.disconnect(this._timerResumedId);
             this._timerResumedId = 0;
+        }
+
+        if (this._timerServiceDisconnectedId) {
+            this._timer.disconnect(this._timerServiceDisconnectedId);
+            this._timerServiceDisconnectedId = 0;
         }
 
         for (const patch of this._patches)
