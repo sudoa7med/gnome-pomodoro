@@ -429,7 +429,10 @@ const TextIndicator = class extends EventEmitter {
 
         this.timer = timer;
 
-        this.actor = new St.Widget({reactive: true});
+        this.actor = new St.Widget({
+            reactive: true,
+            style_class: 'extension-pomodoro-timer-indicator',
+        });
         this.actor._delegate = this;
 
         this.label = new St.Label({
