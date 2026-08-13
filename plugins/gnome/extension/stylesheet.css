@@ -21,9 +21,14 @@
 }
 
 .extension-pomodoro-timer-indicator {
-    padding: 2px 6px;
+    padding: 2px 8px;
     border-radius: 12px;
-    background-color: rgba(128, 128, 128, 0.35);
+    background-color: rgba(128, 128, 128, 0.35) !important;
+    min-width: 48px;
+}
+
+.extension-pomodoro-timer-label-text {
+    background-color: transparent;
 }
 
 .extension-pomodoro-indicator-menu {

@@ -81,6 +81,8 @@ const IndicatorMenu = class extends PopupMenu.PopupMenu {
 
         this.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
+        this._addIndicatorTypeMenu();
+
         this.addAction(_('Preferences'), this._activatePreferences.bind(this));
         this.addAction(_('Stats'), this._activateStats.bind(this));
         this.addAction(_('Quit'), this._activateQuit.bind(this));
@@ -335,6 +337,42 @@ const IndicatorMenu = class extends PopupMenu.PopupMenu {
         return menuItem;
     }
 
+    _addIndicatorTypeMenu() {
+        const types = [
+            {key: 'icon', label: _('Circle')},
+            {key: 'text', label: _('Timer')},
+            {key: 'short-text', label: _('Short Timer')},
+        ];
+
+        const settings = extension.pluginSettings;
+        const currentType = settings.get_string('indicator-type');
+
+        this._indicatorTypeItems = {};
+
+        for (const {key, label} of types) {
+            const menuItem = this.addAction(label, () => {
+                settings.set_string('indicator-type', key);
+                this._updateIndicatorTypeItems(key);
+            });
+            menuItem.add_style_class_name('state-item');
+            this._indicatorTypeItems[key] = menuItem;
+        }
+
+        this._updateIndicatorTypeItems(currentType);
+    }
+
+    _updateIndicatorTypeItems(activeType) {
+        for (const [key, menuItem] of Object.entries(this._indicatorTypeItems)) {
+            if (key === activeType) {
+                menuItem.setOrnament(PopupMenu.Ornament.DOT);
+                menuItem.add_style_class_name('active');
+            } else {
+                menuItem.setOrnament(PopupMenu.Ornament.NONE);
+                menuItem.remove_style_class_name('active');
+            }
+        }
+    }
+
     _activateState(stateName) {
         this.itemActivated(PopupAnimation.NONE);
 
@@ -431,14 +469,19 @@ const TextIndicator = class extends EventEmitter {
 
         this.actor = new St.Widget({
             reactive: true,
+            x_expand: true,
+            y_expand: true,
+            x_align: Clutter.ActorAlign.FILL,
             style_class: 'extension-pomodoro-timer-indicator',
         });
         this.actor._delegate = this;
 
         this.label = new St.Label({
-            style_class: 'system-status-label',
+            style_class: 'system-status-label extension-pomodoro-timer-label-text',
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
+            x_expand: true,
+            y_expand: true,
         });
         this.label.clutter_text.line_wrap = false;
         this.label.clutter_text.ellipsize = false;
