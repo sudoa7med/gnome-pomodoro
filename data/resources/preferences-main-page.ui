@@ -522,7 +522,6 @@
                                         <items>
                                           <item translatable="yes">Circle</item>
                                           <item translatable="yes">Timer</item>
-                                          <item translatable="yes">Short Timer</item>
                                         </items>
                                       </object>
                                       <packing>

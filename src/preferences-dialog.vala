@@ -641,17 +641,12 @@ namespace Pomodoro
 
             var indicator_combo = builder.get_object ("indicator_type_combo")
                                                          as Gtk.ComboBoxText;
-            string[] indicator_types = { "icon", "text", "short-text" };
+            string[] indicator_types = { "icon", "text" };
 
             var indicator_type = indicator_settings.get_string ("indicator-type");
             var active_index = 0;
-            for (var i = 0; i < indicator_types.length; i++) {
-                if (indicator_type == indicator_types [i]) {
-                    active_index = i;
-
-                    break;
-                }
-            }
+            if (indicator_type == "text" || indicator_type == "short-text")
+                active_index = 1;
 
             indicator_combo.active = active_index;
 
