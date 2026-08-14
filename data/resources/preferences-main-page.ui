@@ -489,6 +489,53 @@
                             <property name="selection_mode">none</property>
                             <signal name="row-activated" handler="on_row_activated" swapped="no"/>
                             <child>
+                              <object class="GtkListBoxRow" id="listboxrow_indicator_type">
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="activatable">False</property>
+                                <property name="selectable">False</property>
+                                <child>
+                                  <object class="GtkBox" id="box_indicator_type">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
+                                    <property name="spacing">30</property>
+                                    <child>
+                                      <object class="GtkLabel" id="label_indicator_type">
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">False</property>
+                                        <property name="halign">start</property>
+                                        <property name="valign">baseline</property>
+                                        <property name="hexpand">True</property>
+                                        <property name="label" translatable="yes">Panel indicator</property>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">0</property>
+                                      </packing>
+                                    </child>
+                                    <child>
+                                      <object class="GtkComboBoxText" id="indicator_type_combo">
+                                        <property name="visible">True</property>
+                                        <property name="can_focus">True</property>
+                                        <property name="valign">center</property>
+                                        <items>
+                                          <item translatable="yes">Circle</item>
+                                          <item translatable="yes">Timer</item>
+                                          <item translatable="yes">Short Timer</item>
+                                        </items>
+                                      </object>
+                                      <packing>
+                                        <property name="expand">False</property>
+                                        <property name="fill">True</property>
+                                        <property name="position">1</property>
+                                      </packing>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
                               <object class="GtkListBoxRow" id="listboxrow_idle_monitor">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
@@ -614,6 +661,7 @@
     <property name="ignore_hidden">True</property>
     <widgets>
       <widget name="listboxrow3"/>
+      <widget name="listboxrow_indicator_type"/>
       <widget name="listboxrow_idle_monitor"/>
       <widget name="listboxrow2"/>
       <widget name="listboxrow_accelerator"/>

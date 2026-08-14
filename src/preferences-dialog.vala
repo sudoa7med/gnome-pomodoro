@@ -636,6 +636,32 @@ namespace Pomodoro
                                 pause_when_idle_toggle,
                                 "active",
                                 GLib.SettingsBindFlags.DEFAULT);
+
+            var indicator_settings = new GLib.Settings ("org.gnome.pomodoro.plugins.gnome");
+
+            var indicator_combo = builder.get_object ("indicator_type_combo")
+                                                         as Gtk.ComboBoxText;
+            string[] indicator_types = { "icon", "text", "short-text" };
+
+            var indicator_type = indicator_settings.get_string ("indicator-type");
+            var active_index = 0;
+            for (var i = 0; i < indicator_types.length; i++) {
+                if (indicator_type == indicator_types [i]) {
+                    active_index = i;
+
+                    break;
+                }
+            }
+
+            indicator_combo.active = active_index;
+
+            indicator_combo.changed.connect (() => {
+                var index = indicator_combo.active;
+
+                if (index >= 0 && index < indicator_types.length)
+                    indicator_settings.set_string ("indicator-type",
+                                                   indicator_types [index]);
+            });
         }
 
         private void setup_plugins_section (Gtk.Builder builder)
